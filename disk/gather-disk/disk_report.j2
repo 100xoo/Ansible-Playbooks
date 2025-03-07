@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <title>Disk Report - {{ lookup('pipe', 'date +%Y-%m-%d') }}</title>
+    <style>
+        table {border-collapse: collapse; width: 100%;}
+        table, th, td {border: 1px solid black;}
+        th, td {padding: 5px; text-align: left;}
+        th {background-color: #f2f2f2;}
+        pre {white-space: pre-wrap;}
+    </style>
+</head>
+<body>
+    <h2>Disk Report ({{ lookup('pipe', 'date +%Y-%m-%d') }})</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>df -h</th>
+                <th>lsblk</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for server in combined_disk_info %}
+            <tr>
+                <td>{{ server.hostname }}</td>
+                <td><pre>{{ server.df }}</pre></td>
+                <td><pre>{{ server.lsblk }}</pre></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
