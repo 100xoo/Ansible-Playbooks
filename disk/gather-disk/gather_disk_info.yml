@@ -1,0 +1,29 @@
+- name: Gather disk information from all servers
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Run df -h
+      shell: df -h
+      register: df_output
+
+    - name: Run lsblk
+      shell: lsblk
+      register: lsblk_output
+
+    - name: Append disk information to report file on control node
+      delegate_to: localhost
+      lineinfile:
+        path: "./disk_report_{{ lookup('pipe', 'date +%Y%m%d') }}.txt"
+        line: |
+          ===== {{ inventory_hostname }} =====
+          [df -h]
+          {{ df_output.stdout }}
+
+          [lsblk]
+          {{ lsblk_output.stdout }}
+
+          ------------------------------------------------
+        create: true
+        insertafter: EOF
