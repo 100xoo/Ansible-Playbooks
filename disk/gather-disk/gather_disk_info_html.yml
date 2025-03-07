@@ -1,0 +1,62 @@
+- name: Gather disk information and save as HTML
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Run df -h
+      shell: df -h
+      register: df_output
+
+    - name: Run lsblk
+      shell: lsblk
+      register: lsblk_output
+
+    - name: Save disk info to local file (per host)
+      delegate_to: localhost
+      copy:
+        dest: "./disk_info_{{ inventory_hostname }}.json"
+        content: |
+          {
+            "hostname": "{{ inventory_hostname }}",
+            "df": {{ df_output.stdout | to_json }},
+            "lsblk": {{ lsblk_output.stdout | to_json }}
+          }
+        mode: '0644'
+
+    - name: Gather all disk info files
+      delegate_to: localhost
+      run_once: true
+      find:
+        paths: .
+        patterns: "disk_info_*.json"
+      register: disk_files
+
+    - name: Read disk info files
+      delegate_to: localhost
+      run_once: true
+      slurp:
+        src: "{{ item.path }}"
+      register: disk_file_contents
+      loop: "{{ disk_files.files }}"
+
+    - name: Combine all disk info
+      delegate_to: localhost
+      run_once: true
+      set_fact:
+        combined_disk_info: "{{ disk_file_contents.results | map(attribute='content') | map('b64decode') | map('from_json') | list }}"
+
+    - name: Generate HTML report
+      delegate_to: localhost
+      run_once: true
+      template:
+        src: disk_report.j2
+        dest: "./disk_report_{{ lookup('pipe', 'date +%Y%m%d') }}.html"
+
+    - name: Cleanup temp files
+      delegate_to: localhost
+      run_once: true
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ disk_files.files }}"
