@@ -1,0 +1,34 @@
+- name: Check /etc/fstab syntax on all servers
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Copy current /etc/fstab to temp file (for safety)
+      copy:
+        src: /etc/fstab
+        dest: /tmp/fstab_for_check
+        remote_src: true
+
+    - name: Check fstab syntax using mount -a -T
+      shell: mount -a -T /tmp/fstab_for_check
+      register: mount_result
+      changed_when: false
+      ignore_errors: true
+
+    - name: Collect fstab check result
+      delegate_to: localhost
+      run_once: true
+      lineinfile:
+        path: "./fstab_check_result_{{ lookup('pipe', 'date +%Y%m%d') }}.txt"
+        line: |
+          ===== {{ inventory_hostname }} =====
+          {{ mount_result.stdout }}
+          {{ mount_result.stderr }}
+        create: true
+        insertafter: EOF
+
+    - name: Cleanup temp file
+      file:
+        path: /tmp/fstab_for_check
+        state: absent
